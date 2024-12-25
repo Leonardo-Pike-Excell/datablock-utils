@@ -35,8 +35,8 @@ def _assign(
 
 
 def _generate_id_types() -> dict[str, IDType]:
-    props = bpy.types.KeyingSetPath.bl_rna.properties
-    enums = [(k, v.icon) for k, v in props.enum_items.items()]
+    prop = bpy.types.KeyingSetPath.bl_rna.properties['id_type']
+    enums = [(k, v.icon) for k, v in prop.enum_items.items()]
 
     collections = [p for p in bpy.types.BlendData.bl_rna.properties if p.type == 'COLLECTION']
     collections.sort(key=lambda c: c.identifier)
