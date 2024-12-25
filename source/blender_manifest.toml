@@ -1,0 +1,12 @@
+schema_version = "1.0.0"
+id = "datablock_utils"
+version = "1.0.0"
+name = "Data-Block Utilities"
+tagline = "Show users, merge duplicates, find similar, and more"
+maintainer = "Leonardo Pike-Excell <leonardopike.excell@gmail.com>"
+type = "add-on"
+website = "https://github.com/Leonardo-Pike-Excell/datablock-utils"
+tags = ["Interface"]
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-3.0-or-later"]
+wheels = ["./wheels/networkx-3.4.2-py3-none-any.whl"]
