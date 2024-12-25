@@ -86,14 +86,11 @@ def get_non_socket_prop_names(node: Node) -> tuple[str, ...]:
 @dataclass(slots=True)
 class NodeProperties:
     node: Node | NodeTree
-    props: list[Any] = field(default_factory=list)
+    props: list[Link | Any] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if isinstance(self.node, Node):
             self.props.extend((self.node.bl_idname, self.node.mute))
-
-    def __repr__(self) -> str:
-        return str(self.props)
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, NodeProperties) and self.props == other.props
@@ -133,14 +130,9 @@ class NodeProperties:
                 continue
 
             try:
-                val = socket.default_value
+                props.append(socket.default_value)
             except AttributeError:
                 continue
-
-            if not isinstance(val, bpy.types.bpy_prop_array):
-                props.append(val)
-            else:
-                props.append(tuple(val))
 
         if node.bl_idname in {'ShaderNodeValue', 'ShaderNodeRGB', 'ShaderNodeNormal'}:
             props.append(node.outputs[0].default_value)
@@ -225,6 +217,8 @@ def contents_of_ntrees(
         for props in node_map.values():
             props.add_inputs(root_links, node_map)
             props.add_other_props()
+            props.props = [
+              tuple(p) if isinstance(p, bpy.types.bpy_prop_array) else p for p in props]
             contents.append(props)
 
         if not is_ng:
