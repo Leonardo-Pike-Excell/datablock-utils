@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection, Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import chain, groupby, product, zip_longest
@@ -423,18 +423,15 @@ class DBU_OT_NodeTreesClearResults(Operator):
 # -------------------------------------------------------------------
 
 
-def merge_ids(
-  duplicate_ids: Iterable[bpy.types.ID],
-  bl_data: bpy.types.bpy_prop_collection,
-) -> None:
-    count = 0
+def merge_ids(duplicate_ids: Iterable[Iterable[bpy.types.ID]]) -> int:
+    to_remove = []
     for target, *junk in duplicate_ids:
-        count += len(junk)
+        to_remove.extend(junk)
         for id_data in junk:
             id_data.user_remap(target)
-            bl_data.remove(id_data)
 
-    return count
+    bpy.data.batch_remove(to_remove)
+    return len(to_remove)
 
 
 class DBU_OT_NodeTreesMergeDuplicates(Operator):
@@ -463,7 +460,7 @@ class DBU_OT_NodeTreesMergeDuplicates(Operator):
             bpy.ops.scene.dbu_node_trees_find_similar(id_type=id_type)
             duplicate_ids = [[bl_data[i.name] for i in g.group] for g in duplicates_coll]
 
-        count = merge_ids(duplicate_ids, bl_data)
+        count = merge_ids(duplicate_ids)
 
         bpy.ops.scene.dbu_node_trees_find_similar(id_type=id_type)
 
@@ -483,17 +480,15 @@ class DBU_OT_ImagesMergeDuplicates(Operator):
         return wm.invoke_confirm(self, event)
 
     def execute(self, context: Context) -> set[str]:
-        images = bpy.data.images
-
         filepath = lambda img: img.filepath
-        groups = [tuple(g) for k, g in groupby(sorted(images, key=filepath), filepath)]
+        groups = [tuple(g) for k, g in groupby(sorted(bpy.data.images, key=filepath), filepath)]
         duplicate_ids = [g for g in groups if len(g) > 1]
 
         if not duplicate_ids:
             self.report({'INFO'}, "No duplicate images found")
             return {'FINISHED'}
 
-        count = merge_ids(duplicate_ids, images)
+        count = merge_ids(duplicate_ids)
         self.report({'INFO'}, f"{count} image(s) cleared")
 
         return {'FINISHED'}
@@ -528,7 +523,7 @@ class DBU_OT_MeshesMergeDuplicates(Operator):
             G.add_edges_from(product(group, group))
 
         duplicate_ids = [sorted(c, key=lambda m: m.name) for c in nx.connected_components(G)]
-        count = merge_ids(duplicate_ids, bpy.data.meshes)
+        count = merge_ids(duplicate_ids)
         self.report({'INFO'}, f"Cleared {count} mesh(s)")
 
         return {'FINISHED'}
