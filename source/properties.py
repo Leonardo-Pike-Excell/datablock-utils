@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# type: ignore
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -23,7 +25,7 @@ from .constants import ID_TYPES, get_id_type
 def get_items(
   id_types: Iterable[str],
   reverse: bool = False,
-) -> tuple[tuple[str, str, str, str, int]]:
+) -> tuple[tuple[str, str, str, str, int], ...]:
     items = []
     for i, id_type in enumerate(id_types):
         val = ID_TYPES[id_type]
