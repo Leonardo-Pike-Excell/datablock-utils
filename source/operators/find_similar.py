@@ -45,7 +45,7 @@ def get_precomputed_root_link(link: NodeLink, links: dict[NodeSocket, NodeLink])
 
     try:
         prev_link = links[link.from_node.inputs[0]]
-    except IndexError:
+    except (IndexError, KeyError):
         return link
 
     return get_precomputed_root_link(prev_link, links) if prev_link.is_valid else link
