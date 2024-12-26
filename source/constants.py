@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 import bpy
 
@@ -21,7 +22,7 @@ class IDType:
 def _assign(
   key: str,
   coll: str,
-  enums: list[str, str],
+  enums: list[tuple[str, Any]],
   collections: list[bpy.types.CollectionProperty],
   *,
   remove: bool = True,
