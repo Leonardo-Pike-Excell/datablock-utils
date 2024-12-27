@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# type: ignore
+
 import bpy
 from bpy.types import Context, Panel, UILayout
 from bpy.utils import register_class, unregister_class
