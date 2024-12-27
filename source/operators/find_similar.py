@@ -166,44 +166,39 @@ class NodeProperties:
             # yapf: disable
             prop = getattr(node, prop_name)
             if isinstance(prop, bpy.types.CurveMapping):
-                curve_points = [
-                    (p.location, p.handle_type)
-                    for c in prop.curves
-                    for p in c.points]
+                curve_points = [(p.location, p.handle_type) for c in prop.curves for p in c.points]
                 props.extend((
-                    prop.black_level,
-                    prop.white_level,
-                    prop.extend,
-                    prop.tone,
-                    prop.use_clip,
-                    prop.clip_max_x,
-                    prop.clip_max_y,
-                    prop.clip_min_x,
-                    prop.clip_min_y,
-                    curve_points))
+                  prop.black_level,
+                  prop.white_level,
+                  prop.extend,
+                  prop.tone,
+                  prop.use_clip,
+                  prop.clip_max_x,
+                  prop.clip_max_y,
+                  prop.clip_min_x,
+                  prop.clip_min_y,
+                  curve_points))
             elif isinstance(prop, bpy.types.ColorRamp):
-                elm_positions = [
-                    prop.evaluate(e.position)
-                    for e in prop.elements]
+                elm_positions = [prop.evaluate(e.position) for e in prop.elements]
                 props.extend((
-                    prop.color_mode,
-                    prop.hue_interpolation,
-                    prop.interpolation,
-                    *elm_positions))
+                  prop.color_mode,
+                  prop.hue_interpolation,
+                  prop.interpolation,
+                  *elm_positions))
             elif isinstance(prop, bpy.types.Image):
                 props.extend((
-                    prop.filepath,
-                    prop.source,
-                    prop.colorspace_settings.name,
-                    prop.alpha_mode))
+                  prop.filepath,
+                  prop.source,
+                  prop.colorspace_settings.name,
+                  prop.alpha_mode))
                 if prop.source in {'SEQUENCE', 'MOVIE'}:
-                    img_user = node.image_user
+                    img_user: bpy.types.ImageUser = node.image_user # type: ignore
                     props.extend((
-                        img_user.frame_duration,
-                        img_user.frame_start,
-                        img_user.frame_offset,
-                        img_user.use_cyclic,
-                        img_user.use_auto_refresh))
+                      img_user.frame_duration,
+                      img_user.frame_start,
+                      img_user.frame_offset,
+                      img_user.use_cyclic,
+                      img_user.use_auto_refresh))
             else:
                 props.append(prop)
             # yapf: enable
