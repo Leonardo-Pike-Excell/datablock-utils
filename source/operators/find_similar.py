@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection, Iterable, Iterator, Sequence
+from collections.abc import Collection, Iterable, Iterator
 from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import chain, groupby, product, zip_longest
 from math import floor, sqrt
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from statistics import fmean
-from typing import Any
+from typing import Any, cast
 
 import bpy
 import networkx as nx
@@ -18,10 +18,15 @@ from bpy.props import StringProperty
 from bpy.types import Context, Event, Node, NodeLink, NodeSocket, NodeTree, Operator
 
 from ..constants import ID_TYPES, get_id_type
+from ..properties import DBU_PG_FindSimilarSettings
+
+
+def get_settings() -> DBU_PG_FindSimilarSettings:
+    return bpy.context.scene.dbu_similar_settings  # type: ignore
 
 
 def get_invalid_nodes(ntree: NodeTree) -> set[Node]:
-    settings = bpy.context.scene.dbu_similar_settings
+    settings = get_settings()
     invalid_nodes = set()
 
     if settings.exclude_organization:
@@ -55,9 +60,9 @@ def get_root_link(link: NodeLink) -> NodeLink:
     if link.from_node.bl_idname != 'NodeReroute':
         return link
 
-    try:
-        prev_link = link.from_node.inputs[0].links[0]
-    except IndexError:
+    if links := link.from_node.inputs[0].links:
+        prev_link = links[0]
+    else:
         return link
 
     return get_root_link(prev_link) if prev_link.is_valid else link
@@ -79,7 +84,7 @@ class Link:
 def get_non_socket_prop_names(node: Node) -> tuple[str, ...]:
     node_type = type(node)
     node_props = set(node_type.bl_rna.properties.keys())
-    parent_props = set(node_type.__mro__[1].bl_rna.properties.keys())
+    parent_props = set(node_type.__mro__[1].bl_rna.properties.keys())  # type: ignore
     return tuple(node_props - parent_props)
 
 
@@ -111,10 +116,15 @@ class NodeProperties:
       node_map: dict[str, NodeProperties],
     ) -> None:
         node = self.node
+
+        if not isinstance(node, Node):
+            return
+
         props = self.props
         for socket in node.inputs:
             if socket.is_linked:
                 if socket.is_multi_input:
+                    assert socket.links is not None
                     for link in socket.links:
                         root_link = get_root_link(link)
                         if not root_link.from_node.mute:
@@ -130,15 +140,19 @@ class NodeProperties:
                 continue
 
             try:
-                props.append(socket.default_value)
+                props.append(socket.default_value)  # type: ignore
             except AttributeError:
                 continue
 
         if node.bl_idname in {'ShaderNodeValue', 'ShaderNodeRGB', 'ShaderNodeNormal'}:
-            props.append(node.outputs[0].default_value)
+            props.append(node.outputs[0].default_value)  # type: ignore
 
     def add_other_props(self) -> None:
         node = self.node
+
+        if not isinstance(node, Node):
+            return
+
         non_socket_props = get_non_socket_prop_names(node)
 
         if not non_socket_props:
@@ -199,13 +213,13 @@ def contents_of_ntrees(
   bl_data: Iterable[bpy.types.NodeTree | bpy.types.Material | bpy.types.Light],
   key: str,
 ) -> defaultdict[str, list[NodeProperties]]:
-    is_ng = 'NODETREE' in key
     content_map = defaultdict(list)
     for id_data in bl_data:
-        if id_data.library or (not is_ng and not id_data.use_nodes):
+        if id_data.library or (not isinstance(id_data, NodeTree) and not id_data.use_nodes):
             continue
 
-        ntree = id_data if is_ng else id_data.node_tree
+        ntree = id_data if isinstance(id_data, NodeTree) else id_data.node_tree
+        assert ntree is not None
 
         # Precompute links to avoid `O(len(ntree.links))` time
         links = {l.to_socket: l for l in ntree.links}
@@ -221,13 +235,13 @@ def contents_of_ntrees(
               tuple(p) if isinstance(p, bpy.types.bpy_prop_array) else p for p in props]
             contents.append(props)
 
-        if not is_ng:
+        if not isinstance(id_data, NodeTree):
             continue
 
         tree_sockets = [#
           (i.bl_socket_idname, i.name)
           for i in id_data.interface.items_tree
-          if i.item_type == 'SOCKET']
+          if isinstance(i, bpy.types.NodeTreeInterfaceSocket)]
         contents.append(NodeProperties(ntree, ['TREE SOCKETS'] + tree_sockets))
 
     return content_map
@@ -277,11 +291,9 @@ _Scores = dict[tuple[str, str], float]
 
 
 def find_similar(contents: dict[str, list[NodeProperties]], results: _Scores) -> None:
-    settings = bpy.context.scene.dbu_similar_settings
-    threshold = settings.similarity_threshold
-
     items = contents.items()
     seen = set()
+    threshold = get_settings().similarity_threshold
     for k1, x in items:
         for k2, y in items:
             if {k1, k2} in seen or k1 == k2:
@@ -315,9 +327,7 @@ def process(results: _Scores) -> tuple[list[str], _Scores]:
     for score, G in graphs.items():
         cliques.update({tuple(sorted(c)): score for c in nx.find_cliques(G)})
 
-    settings = bpy.context.scene.dbu_similar_settings
-    threshold = round(settings.grouping_threshold, 2)
-
+    threshold = round(get_settings().grouping_threshold, 2)
     G = nx.Graph()
     for group, score in cliques.items():
         if 1 > score >= threshold:
@@ -345,21 +355,21 @@ class DBU_OT_NodeTreesFindSimilar(Operator):
     bl_label = "Find Similar and Duplicate Node Trees"
     bl_options = {'INTERNAL'}
 
-    id_type: StringProperty()
+    id_type: StringProperty()  # type: ignore
 
     @classmethod
     def description(cls, context: Context, event: DBU_OT_NodeTreesFindSimilar):
-        settings = context.scene.dbu_similar_settings
+        settings = get_settings()
         return f"Show {ID_TYPES[settings.id_type].label} with the highest similarity to each other"
 
     def invoke(self, context: Context, event: Event) -> set[str]:
-        settings = context.scene.dbu_similar_settings
+        settings = get_settings()
         settings.enabled = True
         return self.execute(context)
 
     def execute(self, context: Context) -> set[str]:
         id_type = self.id_type
-        settings = context.scene.dbu_similar_settings
+        settings = get_settings()
 
         bl_data = ID_TYPES[id_type].collection
         results = {}
@@ -409,7 +419,7 @@ class DBU_OT_NodeTreesClearResults(Operator):
     bl_options = {'INTERNAL'}
 
     def execute(self, context: Context) -> set[str]:
-        settings = context.scene.dbu_similar_settings
+        settings = get_settings()
         settings.enabled = False
         return {'FINISHED'}
 
@@ -434,31 +444,27 @@ class DBU_OT_NodeTreesMergeDuplicates(Operator):
     bl_description = "Merge node trees with identical contents"
     bl_options = {'INTERNAL', 'UNDO'}
 
-    id_type: StringProperty()
+    id_type: StringProperty()  # type: ignore
 
     def invoke(self, context: Context, event: Event) -> set[str]:
         wm = context.window_manager
-        return wm.invoke_confirm(self, event)
+        return cast(set[str], wm.invoke_confirm(self, event))
 
     def execute(self, context: Context) -> set[str]:
-        settings = context.scene.dbu_similar_settings
-        duplicates_coll = settings.duplicates
         id_type = self.id_type
-        text = ID_TYPES[id_type].label
+        find_similar_op = attrgetter(DBU_OT_NodeTreesFindSimilar.bl_idname)(bpy.ops)
 
         bl_data = ID_TYPES[id_type].collection
-
+        duplicates_coll = get_settings().duplicates
         try:
             duplicate_ids = [[bl_data[i.name] for i in g.group] for g in duplicates_coll]
         except KeyError:
-            bpy.ops.scene.dbu_node_trees_find_similar(id_type=id_type)
+            find_similar_op(id_type=id_type)
             duplicate_ids = [[bl_data[i.name] for i in g.group] for g in duplicates_coll]
 
         count = merge_ids(duplicate_ids)
-
-        bpy.ops.scene.dbu_node_trees_find_similar(id_type=id_type)
-
-        self.report({'INFO'}, f"Cleared {count} {text[:-1]}(s)")
+        find_similar_op(id_type=id_type)
+        self.report({'INFO'}, f"Cleared {count} {ID_TYPES[id_type].label[:-1]}(s)")
 
         return {'FINISHED'}
 
@@ -471,7 +477,7 @@ class DBU_OT_ImagesMergeDuplicates(Operator):
 
     def invoke(self, context: Context, event: Event) -> set[str]:
         wm = context.window_manager
-        return wm.invoke_confirm(self, event)
+        return cast(set[str], wm.invoke_confirm(self, event))
 
     def execute(self, context: Context) -> set[str]:
         filepath = lambda img: img.filepath
@@ -496,7 +502,7 @@ class DBU_OT_MeshesMergeDuplicates(Operator):
 
     def invoke(self, context: Context, event: Event) -> set[str]:
         wm = context.window_manager
-        return wm.invoke_confirm(self, event)
+        return cast(set[str], wm.invoke_confirm(self, event))
 
     def execute(self, context: Context) -> set[str]:
         meshes = [m for m in bpy.data.meshes if not m.library]
