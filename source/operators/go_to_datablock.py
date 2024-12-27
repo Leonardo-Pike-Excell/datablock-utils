@@ -182,7 +182,7 @@ class DBU_OT_GoToDatablock(Operator):
             obj = obj_users[0]
             obj.modifiers.active = next(
               m for m in obj.modifiers
-              if hasattr(m, 'node_group') and m.node_group.contains_tree(id_data))
+              if (t := getattr(m, 'node_group', None)) and t.contains_tree(id_data))
 
         view_layer.active = obj
 
