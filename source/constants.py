@@ -46,11 +46,18 @@ def _generate_id_types() -> dict[str, IDType]:
       if p.type == 'COLLECTION']
     collections.sort(key=lambda c: c.identifier)
 
-    _assign('CURVES', 'hair_curves', enums, collections)
-    _assign('GREASEPENCIL_V3', 'grease_pencils', enums, collections, remove=False)
-    _assign('KEY', 'shape_keys', enums, collections)
-    _assign('LIGHT', 'lights', enums, collections)
-    _assign('LIGHT_PROBE', 'lightprobes', enums, collections)
+    if bpy.app.version >= (4, 3, 0):
+        _assign('CURVES', 'hair_curves', enums, collections)
+        _assign('GREASEPENCIL', 'grease_pencils', enums, collections)
+        _assign('GREASEPENCIL_V3', 'grease_pencils_v3', enums, collections)
+        _assign('KEY', 'shape_keys', enums, collections)
+        _assign('LIGHT_PROBE', 'lightprobes', enums, collections)
+    else:
+        _assign('CURVES', 'hair_curves', enums, collections)
+        _assign('GREASEPENCIL_V3', 'grease_pencils', enums, collections, remove=False)
+        _assign('KEY', 'shape_keys', enums, collections)
+        _assign('LIGHT', 'lights', enums, collections)
+        _assign('LIGHT_PROBE', 'lightprobes', enums, collections)
 
     id_types = {'UNDEFINED': IDType("undefined", 'QUESTION', '')}
     for (key, icon), coll_prop in zip(enums, collections):
