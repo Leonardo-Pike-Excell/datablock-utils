@@ -64,7 +64,8 @@ def get_geometry_node_group(
     try:
         node = next(n for n in nodes if n.node_tree == id_data)
     except StopIteration:
-        container = next(n.node_tree for n in nodes if n.node_tree.contains_tree(id_data))
+        container = next(
+          n.node_tree for n in nodes if n.node_tree and n.node_tree.contains_tree(id_data))
         space.path.append(container)
         return get_geometry_node_group(space, id_data)
 
