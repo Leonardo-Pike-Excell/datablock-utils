@@ -2,9 +2,10 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import bpy
+from bpy.types import CollectionProperty, EnumProperty
 
 
 @dataclass(slots=True)
@@ -23,7 +24,7 @@ def _assign(
   key: str,
   coll: str,
   enums: list[tuple[str, Any]],
-  collections: list[bpy.types.CollectionProperty],
+  collections: list[CollectionProperty],
   *,
   remove: bool = True,
 ) -> None:
@@ -36,10 +37,13 @@ def _assign(
 
 
 def _generate_id_types() -> dict[str, IDType]:
-    prop = bpy.types.KeyingSetPath.bl_rna.properties['id_type']
+    prop = cast(EnumProperty, bpy.types.KeyingSetPath.bl_rna.properties['id_type'])
     enums = [(k, v.icon) for k, v in prop.enum_items.items()]
 
-    collections = [p for p in bpy.types.BlendData.bl_rna.properties if p.type == 'COLLECTION']
+    collections = [
+      cast(CollectionProperty, p)
+      for p in bpy.types.BlendData.bl_rna.properties
+      if p.type == 'COLLECTION']
     collections.sort(key=lambda c: c.identifier)
 
     _assign('CURVES', 'hair_curves', enums, collections)
@@ -59,7 +63,7 @@ def _generate_id_types() -> dict[str, IDType]:
         if 'type' not in props:
             continue
 
-        for subkey, subval in props['type'].enum_items.items():
+        for subkey, subval in cast(EnumProperty, props['type']).enum_items.items():
             subicon = subval.icon if subval.icon != 'NONE' else icon
             id_types[f'{subkey}_{key}'] = IDType(label, subicon, coll)
 
