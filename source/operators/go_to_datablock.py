@@ -192,7 +192,7 @@ class DBU_OT_GoToDatablock(Operator):
               m for m in obj.modifiers
               if (t := getattr(m, 'node_group', None)) and t.contains_tree(id_data))
 
-        view_layer.active = obj  # pyright: ignore [reportUnboundVariable]
+        view_layer.active = obj  # pyright: ignore [reportPossiblyUnboundVariable]
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
