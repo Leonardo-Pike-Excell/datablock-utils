@@ -132,7 +132,7 @@ class DBU_OT_GoToDatablock(Operator):
         node_name = self.node_name
         is_obj_data = ID_TYPES[id_type].is_object_data and not node_name
         view_layer = context.view_layer.objects
-        obj_users = [o for o in raw_obj_users if o.name in view_layer]
+        obj_users = [o for o in raw_obj_users if not o.library and o.name in view_layer]
 
         settings = getattr(context.scene, self.settings)
         if settings.select_object_users or (is_obj or is_obj_data) or not obj_users:
