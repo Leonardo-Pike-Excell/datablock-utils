@@ -19,7 +19,7 @@ class DBU_OT_UserMap(Operator):
     bl_idname = "scene.dbu_user_map"
     bl_label = "Show Data-Block Users"
     bl_description = "List the users of the specified data-blocks"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     @classmethod
     def add_users(
@@ -113,7 +113,7 @@ class DBU_OT_UserMapClearResults(Operator):
     bl_idname = "scene.dbu_user_map_clear_results"
     bl_label = "Clear"
     bl_description = "Clear the results"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     def execute(self, context: Context) -> set[str]:
         settings = get_settings()
@@ -128,7 +128,7 @@ class DBU_OT_UserMapAddAll(Operator):
     bl_idname = "scene.dbu_user_map_add_all"
     bl_label = "Add All"
     bl_description = "Add all data-blocks of this type"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     def execute(self, context: Context) -> set[str]:
         settings = get_settings()
@@ -154,7 +154,7 @@ class DBU_OT_UserMapRemove(Operator):
     bl_idname = "scene.dbu_user_map_remove"
     bl_label = "Remove"
     bl_description = "Remove item"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     idx: IntProperty()  # type: ignore
 
@@ -172,7 +172,7 @@ class DBU_OT_UserMapRemoveAll(Operator):
     bl_idname = "scene.dbu_user_map_remove_all"
     bl_label = "Clear"
     bl_description = "Clear the list"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     def execute(self, context: Context) -> set[str]:
         settings = get_settings()
