@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection, Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import chain, groupby, product, zip_longest
 from math import floor, sqrt
-from operator import attrgetter, itemgetter
+from operator import itemgetter
 from statistics import fmean
 from typing import Any, cast
 
@@ -205,8 +205,7 @@ class NodeProperties:
 
 
 def contents_of_ntrees(
-  bl_data: Iterable[bpy.types.NodeTree | bpy.types.Material | bpy.types.Light],
-  key: str,
+  bl_data: Iterable[NodeTree | bpy.types.Material | bpy.types.Light]
 ) -> defaultdict[str, list[NodeProperties]]:
     content_map = defaultdict(list)
     for id_data in bl_data:
@@ -313,14 +312,15 @@ def find_similar(contents: dict[str, list[NodeProperties]], results: _Scores) ->
             results[(k1, k2)] = score
 
 
-def process(results: _Scores) -> tuple[list[str], _Scores]:
+def process(results: _Scores) -> tuple[list[tuple[str, ...]], _Scores]:
     graphs = defaultdict(nx.Graph)
     for (p, q), score in results.items():
         graphs[score].add_edge(p, q)
 
     cliques = {}
     for score, G in graphs.items():
-        cliques.update({tuple(sorted(c)): score for c in nx.find_cliques(G)})
+        for c in nx.find_cliques(G):
+            cliques[tuple(sorted(c))] = score  # type: ignore
 
     threshold = round(get_settings().grouping_threshold, 2)
     G = nx.Graph()
@@ -345,17 +345,103 @@ def process(results: _Scores) -> tuple[list[str], _Scores]:
     return duplicates, scored
 
 
-class DBU_OT_NodeTreesFindSimilar(Operator):
-    bl_idname = "scene.dbu_node_trees_find_similar"
-    bl_label = "Find Similar and Duplicate Node Trees"
-    bl_options = {'INTERNAL'}
+# -------------------------------------------------------------------
+
+
+def update_collections(
+  bl_data: bpy.types.bpy_prop_collection,
+  duplicates: Iterable[Sequence[str]],
+  scored: _Scores | None = None,
+) -> None:
+    settings = get_settings()
+    duplicates_coll = settings.duplicates
+    scored_coll = settings.scored
+
+    duplicates_coll.clear()
+    scored_coll.clear()
+
+    for dgroup in duplicates:
+        ditem = duplicates_coll.add()
+        ditem.id_type = get_id_type(bl_data[dgroup[0]])
+        for name in dgroup:
+            i = ditem.group.add()
+            i.name = name
+
+    if not scored:
+        return
+
+    for sgroup, score in scored.items():
+        sitem = scored_coll.add()
+        sitem.id_type = get_id_type(bl_data[sgroup[0]])
+        sitem.score = score
+        for name in sgroup:
+            i = sitem.group.add()
+            i.name = name
+
+
+def find_similar_and_duplicate_ntrees(id_type: str) -> None:
+    bl_data = ID_TYPES[id_type].collection
+    results = {}
+
+    for key, sub_data in groupby(sorted(bl_data, key=get_id_type), get_id_type):
+        if 'UNDEFINED' not in key:
+            content_map = contents_of_ntrees(tuple(sub_data))
+            find_similar(content_map, results)
+
+    duplicates, scored = process(results)
+    update_collections(bl_data, duplicates, scored)
+
+
+def find_duplicate_images() -> None:
+    duplicates = []
+    path = lambda img: img.filepath
+    for _, raw_group in groupby(sorted(bpy.data.images, key=path), path):
+        group = [i.name for i in raw_group]
+        if len(group) > 1:
+            duplicates.append(group)
+
+    update_collections(bpy.data.images, duplicates)
+
+
+def find_duplicate_meshes() -> None:
+    meshes = [m for m in bpy.data.meshes if not m.library]
+    seen = set()
+    results = []
+    for m1 in meshes:
+        for m2 in meshes:
+            if {m1, m2} in seen or m1 == m2:
+                continue
+
+            if m1.unit_test_compare(mesh=m2) == 'Same':
+                results.append((m1, m2))
+
+            seen.add(frozenset((m1, m2)))
+
+    G = nx.Graph()
+    for group in results:
+        G.add_edges_from(product(group, group))
+
+    duplicates = [sorted([m.name for m in c]) for c in nx.connected_components(G)]
+    update_collections(bpy.data.meshes, duplicates)
+
+
+class DBU_OT_FindSimilarAndDuplicates(Operator):
+    bl_idname = "scene.dbu_find_similar_and_duplicates"
+    bl_label = ""
+    bl_options = {'INTERNAL', 'UNDO'}
 
     id_type: StringProperty()  # type: ignore
 
     @classmethod
-    def description(cls, context: Context, event: DBU_OT_NodeTreesFindSimilar):
-        settings = get_settings()
-        return f"Show {ID_TYPES[settings.id_type].label} with the highest similarity to each other"
+    def description(cls, context: Context, event: DBU_OT_FindSimilarAndDuplicates) -> str:
+        id_type = get_settings().id_type
+        text = ID_TYPES[id_type].label
+        if ID_TYPES[id_type].is_ntree:
+            return f"Show {text} with the highest similarity to each other"
+        elif id_type == 'IMAGE':
+            return f"Show {text} with identical names and filepaths"
+        else:
+            return f"Show duplicate {text}"
 
     def invoke(self, context: Context, event: Event) -> set[str]:
         settings = get_settings()
@@ -364,54 +450,28 @@ class DBU_OT_NodeTreesFindSimilar(Operator):
 
     def execute(self, context: Context) -> set[str]:
         id_type = self.id_type
+
+        if ID_TYPES[id_type].is_ntree:
+            find_similar_and_duplicate_ntrees(id_type)
+        elif id_type == 'IMAGE':
+            find_duplicate_images()
+        elif id_type == 'MESH':
+            find_duplicate_meshes()
+
         settings = get_settings()
-
-        bl_data = ID_TYPES[id_type].collection
-        results = {}
-
-        for key, sub_data in groupby(sorted(bl_data, key=get_id_type), get_id_type):
-            if 'UNDEFINED' not in key:
-                content_map = contents_of_ntrees(tuple(sub_data), key)
-                find_similar(content_map, results)
-
-        duplicates, scored = process(results)
-
-        duplicates_coll = settings.duplicates
-        scored_coll = settings.scored
-
-        duplicates_coll.clear()
-        scored_coll.clear()
-
-        for dgroup in duplicates:
-            ditem = duplicates_coll.add()
-            ditem.id_type = get_id_type(bl_data[dgroup[0]])
-            for name in dgroup:
-                i = ditem.group.add()
-                i.name = name
-
-        for sgroup, score in scored.items():
-            sitem = scored_coll.add()
-            sitem.id_type = get_id_type(bl_data[sgroup[0]])
-            sitem.score = score
-            for name in sgroup:
-                i = sitem.group.add()
-                i.name = name
-
-        if not duplicates_coll and not scored_coll:
-            self.report({'INFO'}, f"No similar {ID_TYPES[id_type].label} found")
+        if not settings.duplicates and not settings.scored:
+            word = "similar" if ID_TYPES[id_type].is_ntree else "duplicate"
+            self.report({'INFO'}, f"No {word} {ID_TYPES[id_type].label} found")
             settings.enabled = False
 
         return {'FINISHED'}
 
 
-# -------------------------------------------------------------------
-
-
-class DBU_OT_NodeTreesClearResults(Operator):
-    bl_idname = "scene.dbu_node_trees_clear_results"
+class DBU_OT_SimilarAndDuplicatesClearResults(Operator):
+    bl_idname = "scene.dbu_similar_and_duplicates_clear_results"
     bl_label = "Clear"
     bl_description = "Clear the results"
-    bl_options = {'INTERNAL'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     def execute(self, context: Context) -> set[str]:
         settings = get_settings()
@@ -433,13 +493,21 @@ def merge_ids(duplicate_ids: Iterable[Iterable[bpy.types.ID]]) -> int:
     return len(to_remove)
 
 
-class DBU_OT_NodeTreesMergeDuplicates(Operator):
-    bl_idname = "scene.dbu_node_trees_merge_duplicates"
-    bl_label = "Merge Duplicate Node Trees"
-    bl_description = "Merge node trees with identical contents"
+class DBU_OT_MergeDuplicates(Operator):
+    bl_idname = "scene.dbu_merge_duplicates"
+    bl_label = "Merge Duplicates"
     bl_options = {'INTERNAL', 'UNDO'}
 
     id_type: StringProperty()  # type: ignore
+
+    @classmethod
+    def description(cls, context: Context, event: DBU_OT_MergeDuplicates) -> str:
+        id_type = get_settings().id_type
+        desc = f"Merge duplicate {ID_TYPES[id_type].label}"
+        if id_type == 'MESH':
+            desc += ". Equivalent to having them as if they were linked"
+
+        return desc
 
     def invoke(self, context: Context, event: Event) -> set[str]:
         wm = context.window_manager
@@ -447,78 +515,20 @@ class DBU_OT_NodeTreesMergeDuplicates(Operator):
 
     def execute(self, context: Context) -> set[str]:
         id_type = self.id_type
-        find_similar_op = attrgetter(DBU_OT_NodeTreesFindSimilar.bl_idname)(bpy.ops)
-
         bl_data = ID_TYPES[id_type].collection
         duplicates_coll = get_settings().duplicates
-        try:
-            duplicate_ids = [[bl_data[i.name] for i in g.group] for g in duplicates_coll]
-        except KeyError:
-            find_similar_op(id_type=id_type)
-            duplicate_ids = [[bl_data[i.name] for i in g.group] for g in duplicates_coll]
+
+        duplicate_ids = []
+        for group in duplicates_coll:
+            # Reporting that IDs are missing could give the false impression that stale data is
+            # always checked for, including changed node trees.
+            if new_group := [bl_data[i.name] for i in group.group if i.name in bl_data]:
+                duplicate_ids.append(new_group)
 
         count = merge_ids(duplicate_ids)
-        find_similar_op(id_type=id_type)
-        self.report({'INFO'}, f"Cleared {count} {ID_TYPES[id_type].label[:-1]}(s)")
+        bpy.ops.scene.dbu_find_similar_and_duplicates(id_type=id_type)  # type: ignore
 
-        return {'FINISHED'}
-
-
-class DBU_OT_ImagesMergeDuplicates(Operator):
-    bl_idname = "scene.dbu_images_merge_duplicates"
-    bl_label = "Merge Duplicate Images"
-    bl_description = "Merge images with identical names and filepaths"
-    bl_options = {'INTERNAL', 'UNDO'}
-
-    def invoke(self, context: Context, event: Event) -> set[str]:
-        wm = context.window_manager
-        return cast(set[str], wm.invoke_confirm(self, event))
-
-    def execute(self, context: Context) -> set[str]:
-        filepath = lambda img: img.filepath
-        groups = [tuple(g) for k, g in groupby(sorted(bpy.data.images, key=filepath), filepath)]
-        duplicate_ids = [g for g in groups if len(g) > 1]
-
-        if not duplicate_ids:
-            self.report({'INFO'}, "No duplicate images found")
-            return {'FINISHED'}
-
-        count = merge_ids(duplicate_ids)
-        self.report({'INFO'}, f"{count} image(s) cleared")
-
-        return {'FINISHED'}
-
-
-class DBU_OT_MeshesMergeDuplicates(Operator):
-    bl_idname = "scene.dbu_meshes_merge_duplicates"
-    bl_label = "Merge Duplicate Meshes"
-    bl_description = "Merge duplicate meshes. Equivalent to having them as if they were linked"
-    bl_options = {'INTERNAL', 'UNDO'}
-
-    def invoke(self, context: Context, event: Event) -> set[str]:
-        wm = context.window_manager
-        return cast(set[str], wm.invoke_confirm(self, event))
-
-    def execute(self, context: Context) -> set[str]:
-        meshes = [m for m in bpy.data.meshes if not m.library]
-        seen = set()
-        results = []
-        for m1 in meshes:
-            for m2 in meshes:
-                if {m1, m2} in seen or m1 == m2:
-                    continue
-
-                if m1.unit_test_compare(mesh=m2) == 'Same':
-                    results.append((m1, m2))
-
-                seen.add(frozenset((m1, m2)))
-
-        G = nx.Graph()
-        for group in results:
-            G.add_edges_from(product(group, group))
-
-        duplicate_ids = [sorted(c, key=lambda m: m.name) for c in nx.connected_components(G)]
-        count = merge_ids(duplicate_ids)
-        self.report({'INFO'}, f"Cleared {count} mesh(s)")
+        text = f"{ID_TYPES[id_type].label[:-1]}(s)" if id_type != 'MESH' else "mesh(s)"
+        self.report({'INFO'}, f"Cleared {count} {text}")
 
         return {'FINISHED'}

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -13,11 +12,12 @@ class IDType:
     label: str
     icon: str
     _collection: str
+    is_ntree: bool = False
     is_object_data: bool = False
 
     @property
-    def collection(self) -> Mapping:
-        return getattr(bpy.data, self._collection, {})
+    def collection(self) -> bpy.types.bpy_prop_collection:
+        return getattr(bpy.data, self._collection, {})  # type: ignore
 
 
 def _assign(
@@ -65,7 +65,8 @@ def _generate_id_types() -> dict[str, IDType]:
         coll = coll_prop.identifier
         props = coll_prop.fixed_type.bl_rna.properties
 
-        id_types[key] = IDType(label, icon, coll)
+        is_ntree = 'node_tree' in props or 'nodes' in props
+        id_types[key] = IDType(label, icon, coll, is_ntree)
 
         if 'type' not in props:
             continue

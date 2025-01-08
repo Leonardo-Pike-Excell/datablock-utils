@@ -17,26 +17,9 @@ class ScenePropertiesPanel:
     bl_options = {'DEFAULT_CLOSED'}
 
 
-class DBU_PT_Duplicates(ScenePropertiesPanel, Panel):
-    bl_label = "Images & Meshes"
-    bl_idname = "SCENE_PT_DBU_duplicates"
-
-    def draw_header(self, context: Context) -> None:
-        layout = self.layout
-        layout.label(text="", icon='FILE_BLEND')
-
-    def draw(self, context: Context) -> None:
-        layout = self.layout
-        layout.operator_context = 'INVOKE_DEFAULT'
-
-        layout.operator(operator="scene.dbu_images_merge_duplicates", icon='IMAGE_DATA')
-
-        layout.operator(operator="scene.dbu_meshes_merge_duplicates", icon='MESH_DATA')
-
-
-class DBU_PT_SimilarNodeTrees(ScenePropertiesPanel, Panel):
-    bl_label = "Node Trees"
-    bl_idname = "SCENE_PT_DBU_similar_node_trees"
+class DBU_PT_SimilarAndDuplicates(ScenePropertiesPanel, Panel):
+    bl_label = "Similar & Duplicates"
+    bl_idname = "SCENE_PT_DBU_similar_and_duplicates"
 
     @staticmethod
     def draw_group(layout: UILayout, item: DBU_PG_GroupItem) -> None:
@@ -65,22 +48,26 @@ class DBU_PT_SimilarNodeTrees(ScenePropertiesPanel, Panel):
         settings = scene.dbu_similar_settings
         id_type = settings.id_type
 
+        is_ntree = ID_TYPES[id_type].is_ntree
         text = ID_TYPES[id_type].label
         label = text.title()
 
         row = layout.row(align=True)
-        op = row.operator("scene.dbu_node_trees_find_similar", text="Find Similar and Duplicates")
+        text = "Find Similar and Duplicates" if is_ntree else "Find Duplicates"
+        op = row.operator("scene.dbu_find_similar_and_duplicates", text=text)
         op.id_type = id_type
         if settings.enabled:
-            row.operator("scene.dbu_node_trees_clear_results", text="", icon='X')
+            row.operator("scene.dbu_similar_and_duplicates_clear_results", text="", icon='X')
 
         layout.prop(settings, "id_type")
 
         col = layout.column(align=True)
+        col.active = is_ntree
         col.prop(settings, "similarity_threshold")
         col.prop(settings, "grouping_threshold")
 
         col = layout.column(heading="Exclude")
+        col.active = is_ntree
         col.prop(settings, "exclude_unused")
         col.prop(settings, "exclude_organization")
 
@@ -103,11 +90,7 @@ class DBU_PT_SimilarNodeTrees(ScenePropertiesPanel, Panel):
 
             layout.separator(factor=0.1)
             layout.operator_context = 'INVOKE_DEFAULT'
-            op = layout.operator(
-              "scene.dbu_node_trees_merge_duplicates",
-              text="Mege Duplicates",
-              icon='FILE_PARENT',
-            )
+            op = layout.operator("scene.dbu_merge_duplicates", icon='FILE_PARENT')
             op.id_type = id_type
             layout.separator(factor=0.3)
 
@@ -335,8 +318,7 @@ class DBU_PT_UserMapFilter(ScenePropertiesPanel, Panel):
 
 
 classes = (
-  DBU_PT_Duplicates,
-  DBU_PT_SimilarNodeTrees,
+  DBU_PT_SimilarAndDuplicates,
   DBU_PT_UserMap,
   DBU_PT_UserMapFilter,
 )
