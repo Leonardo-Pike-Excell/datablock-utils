@@ -430,8 +430,6 @@ class DBU_OT_FindSimilarAndDuplicates(Operator):
     bl_label = ""
     bl_options = {'INTERNAL', 'UNDO'}
 
-    id_type: StringProperty()  # type: ignore
-
     @classmethod
     def description(cls, context: Context, event: DBU_OT_FindSimilarAndDuplicates) -> str:
         id_type = get_settings().id_type
@@ -449,7 +447,8 @@ class DBU_OT_FindSimilarAndDuplicates(Operator):
         return self.execute(context)
 
     def execute(self, context: Context) -> set[str]:
-        id_type = self.id_type
+        settings = get_settings()
+        id_type = settings.id_type
 
         if ID_TYPES[id_type].is_ntree:
             find_similar_and_duplicate_ntrees(id_type)
@@ -458,7 +457,6 @@ class DBU_OT_FindSimilarAndDuplicates(Operator):
         elif id_type == 'MESH':
             find_duplicate_meshes()
 
-        settings = get_settings()
         if not settings.duplicates and not settings.scored:
             word = "similar" if ID_TYPES[id_type].is_ntree else "duplicate"
             self.report({'INFO'}, f"No {word} {ID_TYPES[id_type].label} found")
@@ -498,8 +496,6 @@ class DBU_OT_MergeDuplicates(Operator):
     bl_label = "Merge Duplicates"
     bl_options = {'INTERNAL', 'UNDO'}
 
-    id_type: StringProperty()  # type: ignore
-
     @classmethod
     def description(cls, context: Context, event: DBU_OT_MergeDuplicates) -> str:
         id_type = get_settings().id_type
@@ -514,19 +510,19 @@ class DBU_OT_MergeDuplicates(Operator):
         return cast(set[str], wm.invoke_confirm(self, event))
 
     def execute(self, context: Context) -> set[str]:
-        id_type = self.id_type
-        bl_data = ID_TYPES[id_type].collection
-        duplicates_coll = get_settings().duplicates
+        settings = get_settings()
+        id_type = settings.id_type
 
+        bl_data = ID_TYPES[id_type].collection
         duplicate_ids = []
-        for group in duplicates_coll:
+        for group in settings.duplicates:
             # Reporting that IDs are missing could give the false impression that stale data is
             # always checked for, including changed node trees.
             if new_group := [bl_data[i.name] for i in group.group if i.name in bl_data]:
                 duplicate_ids.append(new_group)
 
         count = merge_ids(duplicate_ids)
-        bpy.ops.scene.dbu_find_similar_and_duplicates(id_type=id_type)  # type: ignore
+        bpy.ops.scene.dbu_find_similar_and_duplicates()  # type: ignore
 
         text = f"{ID_TYPES[id_type].label[:-1]}(s)" if id_type != 'MESH' else "mesh(s)"
         self.report({'INFO'}, f"Cleared {count} {text}")

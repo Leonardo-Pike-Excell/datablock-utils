@@ -54,8 +54,7 @@ class DBU_PT_SimilarAndDuplicates(ScenePropertiesPanel, Panel):
 
         row = layout.row(align=True)
         text = "Find Similar and Duplicates" if is_ntree else "Find Duplicates"
-        op = row.operator("scene.dbu_find_similar_and_duplicates", text=text)
-        op.id_type = id_type
+        row.operator("scene.dbu_find_similar_and_duplicates", text=text)
         if settings.enabled:
             row.operator("scene.dbu_similar_and_duplicates_clear_results", text="", icon='X')
 
@@ -90,8 +89,7 @@ class DBU_PT_SimilarAndDuplicates(ScenePropertiesPanel, Panel):
 
             layout.separator(factor=0.1)
             layout.operator_context = 'INVOKE_DEFAULT'
-            op = layout.operator("scene.dbu_merge_duplicates", icon='FILE_PARENT')
-            op.id_type = id_type
+            layout.operator("scene.dbu_merge_duplicates", icon='FILE_PARENT')
             layout.separator(factor=0.3)
 
         for sitem in settings.scored:

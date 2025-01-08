@@ -64,7 +64,7 @@ def add_parent_item(self: DBU_PG_UserMapSettings, context: Context) -> None:
 def update_similar(self: DBU_PG_FindSimilarSettings, context: Context) -> None:
     settings = context.scene.dbu_similar_settings
     if settings.enabled:
-        bpy.ops.scene.dbu_find_similar_and_duplicates(id_type=settings.id_type)
+        bpy.ops.scene.dbu_find_similar_and_duplicates()
 
 
 def update_user_map(self: DBU_PG_UserMapSettings, context: Context) -> None:
