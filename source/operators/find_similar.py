@@ -299,7 +299,7 @@ def find_similar(contents: dict[str, list[NodeProperties]], results: _Scores) ->
                 continue
 
             seen.add(frozenset((k1, k2)))
-            smallest, largest = sorted((A, B), key=len)
+            smallest, largest = sorted((A, B), key=lambda c: sum([len(p) - 1 for p in c]))
 
             # To avoid as many `cosine_similarity()` calls as possible, check for large
             # differences in length.
