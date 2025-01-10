@@ -262,16 +262,22 @@ def pair_nodes(nodes1: Collection[NodeProperties], nodes2: Collection[NodeProper
     return sum(sums)
 
 
-def cosine_similarity(x: Collection[NodeProperties], y: Collection[NodeProperties]) -> float:
+def cosine_similarity(A: list[NodeProperties], B: list[NodeProperties]) -> float:
 
-    # Nodes from X are compared with nodes from Y of the same type. The most similar are paired
+    # Nodes from A are compared with nodes from B of the same type. The most similar are paired
     # together, and their dot product is returned in `pair_nodes()`.
 
     bl_idname = lambda p: p.props[0]
-    ntypes1 = {t1: list(g1) for t1, g1 in groupby(sorted(x, key=bl_idname), bl_idname)}
-    ntypes2 = {t2: list(g2) for t2, g2 in groupby(sorted(y, key=bl_idname), bl_idname)}
+    A.sort(key=bl_idname)
+    B.sort(key=bl_idname)
 
-    s1 = sum([len(p1) - 1 for p1 in x])
+    if A == B:
+        return 1
+
+    ntypes1 = {t1: list(g1) for t1, g1 in groupby(A, bl_idname)}
+    ntypes2 = {t2: list(g2) for t2, g2 in groupby(B, bl_idname)}
+
+    s1 = sum([len(p1) - 1 for p1 in A])
     s2 = sum([pair_nodes(g1, ntypes2[t1]) for t1, g1 in ntypes1.items() if t1 in ntypes2])
 
     try:
@@ -287,28 +293,23 @@ def find_similar(contents: dict[str, list[NodeProperties]], results: _Scores) ->
     items = contents.items()
     seen = set()
     threshold = get_settings().similarity_threshold
-    for k1, x in items:
-        for k2, y in items:
+    for k1, A in items:
+        for k2, B in items:
             if {k1, k2} in seen or k1 == k2:
                 continue
 
             seen.add(frozenset((k1, k2)))
-            smallest, largest = sorted((x, y), key=len)
+            smallest, largest = sorted((A, B), key=len)
 
             # To avoid as many `cosine_similarity()` calls as possible, check for large
-            # differences in length and equality.
+            # differences in length.
 
             if len(largest) != 0 and (len(smallest) / len(largest)) + 0.1 < threshold:
                 continue
 
-            if x != y:
-                score = cosine_similarity(largest, smallest)
-                if score < threshold:
-                    continue
-            else:
-                score = 1
-
-            results[(k1, k2)] = score
+            score = cosine_similarity(largest, smallest)
+            if score >= threshold:
+                results[(k1, k2)] = score
 
 
 def process(results: _Scores) -> tuple[list[tuple[str, ...]], _Scores]:
