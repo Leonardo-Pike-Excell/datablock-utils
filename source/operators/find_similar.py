@@ -14,7 +14,6 @@ from typing import Any, cast
 
 import bpy
 import networkx as nx
-from bpy.props import StringProperty
 from bpy.types import Context, Event, Node, NodeLink, NodeSocket, NodeTree, Operator
 
 from ..constants import ID_TYPES, get_id_type
@@ -90,12 +89,12 @@ def get_non_socket_prop_names(node: Node) -> tuple[str, ...]:
 
 @dataclass(slots=True)
 class NodeProperties:
-    node: Node | NodeTree
+    id_data: Node | NodeTree
     props: list[Link | Any] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        if isinstance(self.node, Node):
-            self.props.extend((self.node.bl_idname, self.node.mute))
+        if isinstance(self.id_data, Node):
+            self.props.extend((self.id_data.bl_idname, self.id_data.mute))
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, NodeProperties) and self.props == other.props
@@ -115,7 +114,7 @@ class NodeProperties:
       links: dict[NodeSocket, NodeLink],
       node_map: dict[str, NodeProperties],
     ) -> None:
-        node = self.node
+        node = self.id_data
 
         if not isinstance(node, Node):
             return
@@ -148,7 +147,7 @@ class NodeProperties:
             props.append(node.outputs[0].default_value)  # type: ignore
 
     def add_other_props(self) -> None:
-        node = self.node
+        node = self.id_data
 
         if not isinstance(node, Node):
             return
@@ -251,7 +250,7 @@ def pair_nodes(nodes1: Collection[NodeProperties], nodes2: Collection[NodeProper
         for props2 in nodes2:
             zipped = zip_longest(props1.props[1:], props2.props[1:], fillvalue=_SENTINEL)
             dot = sum([1 for a, b in zipped if a == b])
-            diff_map[(props1.node, props2.node)] = (props1_len - dot, dot)
+            diff_map[(props1.id_data, props2.id_data)] = (props1_len - dot, dot)
 
     sums = []
     seen = set()
