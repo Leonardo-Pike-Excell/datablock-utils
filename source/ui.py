@@ -329,5 +329,4 @@ def register() -> None:
 
 def unregister() -> None:
     for cls in reversed(classes):
-        if cls.is_registered:
-            unregister_class(cls)
+        unregister_class(cls)

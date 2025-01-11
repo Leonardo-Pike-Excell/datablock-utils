@@ -259,5 +259,4 @@ def unregister() -> None:
     del Scene.dbu_similar_settings
 
     for cls in reversed(classes):
-        if cls.is_registered:
-            unregister_class(cls)
+        unregister_class(cls)
