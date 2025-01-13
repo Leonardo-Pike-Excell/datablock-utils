@@ -88,7 +88,13 @@ def get_non_socket_prop_names(node: Node) -> tuple[str, ...]:
 
 
 def get_image_props(img: bpy.types.Image) -> tuple[Any, ...]:
-    return (img.filepath, img.source, img.colorspace_settings.name, img.alpha_mode)
+    return (
+      img.filepath,
+      img.source,
+      img.colorspace_settings.name,
+      img.alpha_mode,
+      get_id_type(img),
+    )
 
 
 @dataclass(slots=True)
