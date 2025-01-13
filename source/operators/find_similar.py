@@ -441,7 +441,7 @@ class DBU_OT_FindSimilarAndDuplicates(Operator):
         if ID_TYPES[id_type].is_ntree:
             return f"Show {text} with the highest similarity to each other"
         elif id_type == 'IMAGE':
-            return f"Show {text} with identical names and filepaths"
+            return f"Show {text} with identical filepaths and settings"
         else:
             return f"Show duplicate {text}"
 
