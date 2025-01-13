@@ -87,6 +87,10 @@ def get_non_socket_prop_names(node: Node) -> tuple[str, ...]:
     return tuple(node_props - parent_props)
 
 
+def get_image_props(img: bpy.types.Image) -> tuple[Any, ...]:
+    return (img.filepath, img.source, img.colorspace_settings.name, img.alpha_mode)
+
+
 @dataclass(slots=True)
 class NodeProperties:
     id_data: Node | NodeTree
@@ -185,11 +189,7 @@ class NodeProperties:
                   prop.interpolation,
                   *elm_positions))
             elif isinstance(prop, bpy.types.Image):
-                props.extend((
-                  prop.filepath,
-                  prop.source,
-                  prop.colorspace_settings.name,
-                  prop.alpha_mode))
+                props.extend(get_image_props(prop))
                 if prop.source in {'SEQUENCE', 'MOVIE'}:
                     img_user: bpy.types.ImageUser = node.image_user # type: ignore
                     props.extend((
@@ -393,8 +393,7 @@ def find_similar_and_duplicate_ntrees(id_type: str) -> None:
 
 def find_duplicate_images() -> None:
     duplicates = []
-    path = lambda img: img.filepath
-    for _, raw_group in groupby(sorted(bpy.data.images, key=path), path):
+    for _, raw_group in groupby(sorted(bpy.data.images, key=get_image_props), get_image_props):
         group = [i.name for i in raw_group]
         if len(group) > 1:
             duplicates.append(group)
