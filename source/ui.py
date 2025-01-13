@@ -273,10 +273,10 @@ class DBU_PT_UserMap(ScenePropertiesPanel, Panel):
 
 
 class DBU_PT_UserMapFilter(ScenePropertiesPanel, Panel):
+    bl_context = ".scene"
     bl_idname = "SCENE_PT_DBU_user_map_filter"
     bl_label = ""
     bl_description = "Filter users by type"
-    bl_options = {'INSTANCED'}
 
     @staticmethod
     def draw_user_type(layout: UILayout, prop_name: str) -> None:
