@@ -81,6 +81,9 @@ class Link:
 
 
 def get_non_socket_prop_names(node: Node) -> tuple[str, ...]:
+    if not node.is_registered_node_type():
+        return ()
+
     node_type = type(node)
     node_props = set(node_type.bl_rna.properties.keys())
     parent_props = set(node_type.__mro__[1].bl_rna.properties.keys())  # type: ignore
