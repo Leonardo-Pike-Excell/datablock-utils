@@ -340,7 +340,7 @@ def process(results: _Scores) -> tuple[list[tuple[str, ...]], _Scores]:
     for c in nx.connected_components(G):
         if len(c) > 2:
             H = G.subgraph(c)
-            groups[tuple(sorted(G))] = fmean([d for *_, d in H.edges.data('score')])
+            groups[tuple(sorted(c))] = fmean([d for *_, d in H.edges.data('score')])
 
     seen = set(chain(*groups))
     raw_scored = {g: s for g, s in cliques.items() if s < 1 and not seen.intersection(g)} | groups
