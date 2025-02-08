@@ -98,7 +98,7 @@ class DBU_OT_GoToDatablock(Operator):
         try:
             id_data = ID_TYPES[id_type].collection[self.id_name]
         except KeyError:
-            self.report({'WARNING'}, "Data-Block not found")
+            self.report({'WARNING'}, "Data-block not found")
             return {'CANCELLED'}
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
