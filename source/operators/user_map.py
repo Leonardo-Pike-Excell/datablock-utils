@@ -21,6 +21,29 @@ class DBU_OT_UserMap(Operator):
     bl_description = "List the users of the specified data-blocks"
     bl_options = {'INTERNAL', 'UNDO'}
 
+    @staticmethod
+    def get_node_names(nodes: bpy.types.Nodes, parent: DBU_PG_ParentItem) -> list[str]:
+        id_type = parent.id_type
+
+        if 'NODETREE' in id_type:
+            prop = 'node_tree'
+        elif 'IMAGE' in id_type:
+            prop = 'image'
+        elif 'MATERIAL' in id_type:
+            prop = 'material'
+        elif 'OBJECT' in id_type and not ID_TYPES[id_type].is_object_data:
+            prop = 'object'
+        else:
+            return []
+
+        id_data = ID_TYPES[id_type].collection[parent.name]
+        node_names = [
+          n.name for n in nodes if getattr(n, prop, None) == id_data or any(
+          not i.is_linked and getattr(i, 'default_value', None) == id_data for i in n.inputs)]
+
+        node_names.sort()
+        return node_names
+
     @classmethod
     def add_users(
       cls,
@@ -50,20 +73,8 @@ class DBU_OT_UserMap(Operator):
         if user in ancestors:
             return
 
-        nodes: bpy.types.Nodes | None = getattr(getattr(user, 'node_tree', user), 'nodes', None)
-        if nodes is not None:
-            # yapf: disable
-            if parent.id_type != 'IMAGE':
-                node_names = [
-                  n.name for n in nodes if getattr(n, 'node_tree', None)
-                  and n.node_tree.name == parent.name] # type: ignore
-            else:
-                node_names = [
-                  n.name for n in nodes if hasattr(n, 'image')
-                  and n.image.name == parent.name] # type: ignore
-            # yapf: enable
-
-            for name in sorted(node_names):
+        if nodes := getattr(getattr(user, 'node_tree', user), 'nodes', None):
+            for name in cls.get_node_names(nodes, parent):
                 item = as_user.node_names.add()
                 item.name = name
 
