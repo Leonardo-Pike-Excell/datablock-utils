@@ -203,6 +203,7 @@ class DBU_OT_GoToDatablock(Operator):
         try:
             area, region = get_node_editor()
         except StopIteration:
+            self.report({'WARNING'}, "Node editor not open")
             return {'FINISHED'}
 
         area.ui_type = 'GeometryNodeTree' if is_geo else 'ShaderNodeTree'
