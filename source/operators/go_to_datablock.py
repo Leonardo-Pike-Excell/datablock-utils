@@ -92,7 +92,7 @@ class DBU_OT_GoToDatablock(Operator):
     def execute(self, context: Context) -> set[str]:
         id_type = self.id_type
 
-        if 'TEXTURE' in id_type:
+        if 'TEXTURE' in id_type or id_type == 'GREASEPENCIL_V3':
             return {'CANCELLED'}
 
         try:
