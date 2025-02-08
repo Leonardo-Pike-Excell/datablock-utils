@@ -312,7 +312,7 @@ def find_similar(contents: dict[str, list[NodeProperties]], results: _Scores) ->
 
             # To avoid as many `cosine_similarity()` calls as possible, check for large
             # differences in length.
-            if len(largest) != 0 and (len(smallest) / len(largest)) + 0.1 < threshold:
+            if len(largest) != 0 and (len(smallest) / len(largest)) + 0.14 < threshold:
                 continue
 
             score = cosine_similarity(largest, smallest)
