@@ -11,13 +11,6 @@ from bpy.types import ID, Context, Light, Material, Operator, ShaderNodeTree, Sp
 from ..constants import ID_TYPES
 
 
-def view_selected_delayed(area: bpy.types.Area, region: bpy.types.Region) -> float:
-    assert bpy.context
-    with bpy.context.temp_override(area=area, region=region):
-        bpy.ops.node.view_selected()
-        return 0.0
-
-
 def get_users(subset: Sequence[ID], value_types: set[str]) -> list[ID]:
     users = bpy.data.user_map(subset=subset, value_types=value_types)  # type: ignore
     return list(chain(*users.values()))
@@ -253,10 +246,8 @@ class DBU_OT_GoToDatablock(Operator):
 
             nodes.active = node
             bpy.ops.view2d.reset()
-
-            # If the node editor wasn't originally on the target node tree, then the selection
-            # will only be recognised after `execute()` has ran. A workaround is to use a timer.
-            bpy.app.timers.register(lambda: view_selected_delayed(area, region))
+            bpy.ops.wm.redraw_timer(type='DRAW', iterations=0)
+            bpy.ops.node.view_selected('INVOKE_DEFAULT')
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
