@@ -273,7 +273,11 @@ class DBU_OT_RehideObjectsUsers(Operator):
             return {'CANCELLED'}
 
         for obj_item in unhidden_objects:
-            obj = bpy.data.objects[obj_item.name]
+            try:
+                obj = bpy.data.objects[obj_item.name]
+            except KeyError:
+                continue
+
             obj.hide_set(True)
 
         unhidden_objects.clear()
