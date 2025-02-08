@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from typing import cast
+
 import bpy
 from bpy.props import IntProperty
 from bpy.types import ID, Context, EnumProperty, Operator
