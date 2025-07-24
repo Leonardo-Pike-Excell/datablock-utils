@@ -402,7 +402,9 @@ def find_similar_and_duplicate_ntrees(id_type: str) -> None:
 
 def find_duplicate_images() -> None:
     duplicates = []
-    for _, raw_group in groupby(sorted(bpy.data.images, key=get_image_props), get_image_props):
+    images = [i for i in bpy.data.images if not i.library]
+    images.sort(key=get_image_props)
+    for _, raw_group in groupby(images, get_image_props):
         group = [i.name for i in raw_group]
         if len(group) > 1:
             duplicates.append(group)
