@@ -32,7 +32,7 @@ def _assign(
     if remove:
         collections.remove(coll_prop)
 
-    enum = next(i for i in enums if i[0] == key)
+    enum = next(e for e in enums if e[0] == key)
     collections.insert(enums.index(enum), coll_prop)
 
 
