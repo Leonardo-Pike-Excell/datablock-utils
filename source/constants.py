@@ -47,8 +47,13 @@ def _generate_id_types() -> dict[str, IDType]:
     collections.sort(key=lambda c: c.identifier)
 
     if bpy.app.version >= (4, 3, 0):
+        if bpy.app.version >= (5, 0, 0):
+            collections.remove(next(c for c in collections if c.identifier == 'annotations'))
         _assign('CURVES', 'hair_curves', enums, collections)
-        _assign('GREASEPENCIL', 'grease_pencils', enums, collections)
+        if bpy.app.version >= (5, 0, 0):
+            _assign('GREASEPENCIL', 'grease_pencils_v3', enums, collections, remove=False)
+        else:
+            _assign('GREASEPENCIL', 'grease_pencils', enums, collections)
         _assign('GREASEPENCIL_V3', 'grease_pencils_v3', enums, collections)
         _assign('KEY', 'shape_keys', enums, collections)
         _assign('LIGHT_PROBE', 'lightprobes', enums, collections)
