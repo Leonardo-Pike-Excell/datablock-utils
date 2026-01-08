@@ -143,7 +143,8 @@ class NodeProperties:
                             self._add_link(root_link, node_map)
                     continue
 
-                if not links[socket].from_node.mute:
+                from_node = links[socket].from_node
+                if not from_node.mute and from_node.name in node_map:
                     self._add_link(links[socket], node_map)
                     continue
 
