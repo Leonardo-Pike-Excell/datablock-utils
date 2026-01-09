@@ -52,15 +52,6 @@ def get_path_to_light(
         return get_path_to_light(nested_users, users[0])  # type: ignore
 
 
-def get_node_editor() -> tuple[bpy.types.Area, bpy.types.Region]:
-    assert bpy.context
-    areas = [a for a in bpy.context.window.screen.areas if a.type == 'NODE_EDITOR']
-    area = areas[0] if len(areas) == 1 else next(
-      a for a in areas if not cast(SpaceNodeEditor, a.spaces[0]).pin)
-    region = next(r for r in area.regions if r.type == 'WINDOW')
-    return area, region
-
-
 def get_geometry_node_group(
   space: SpaceNodeEditor,
   id_data: bpy.types.GeometryNodeTree,
@@ -198,15 +189,30 @@ class DBU_OT_GoToDatablock(Operator):
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        assert bpy.context
+        areas = [a for a in context.window.screen.areas if a.type == 'NODE_EDITOR']
 
-        try:
-            area, region = get_node_editor()
-        except StopIteration:
+        if not areas:
             self.report({'WARNING'}, "Node editor not open")
             return {'FINISHED'}
 
-        area.ui_type = 'GeometryNodeTree' if is_geo else 'ShaderNodeTree'
+        target_ui_type = 'GeometryNodeTree' if is_geo else 'ShaderNodeTree'
+
+        if len(areas) == 1:
+            area = areas[0]
+        else:
+            unpinned_areas = [a for a in areas if not cast(SpaceNodeEditor, a.spaces[0]).pin]
+
+            area = next(
+              (a for a in unpinned_areas if a.ui_type == target_ui_type),
+              unpinned_areas[0],
+            )
+
+        area.ui_type = target_ui_type
+        region = next(r for r in area.regions if r.type == 'WINDOW')
+
+        # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        assert bpy.context
         with bpy.context.temp_override(area=area, region=region):
             space = cast(SpaceNodeEditor, context.space_data)
 
