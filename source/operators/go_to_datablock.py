@@ -202,6 +202,10 @@ class DBU_OT_GoToDatablock(Operator):
         else:
             unpinned_areas = [a for a in areas if not cast(SpaceNodeEditor, a.spaces[0]).pin]
 
+            if not unpinned_areas:
+                self.report({'WARNING'}, "No unpinned node editor")
+                return {'FINISHED'}
+
             area = next(
               (a for a in unpinned_areas if a.ui_type == target_ui_type),
               unpinned_areas[0],
