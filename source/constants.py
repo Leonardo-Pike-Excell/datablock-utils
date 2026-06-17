@@ -49,6 +49,8 @@ def _generate_id_types() -> dict[str, IDType]:
     if bpy.app.version >= (4, 3, 0):
         if bpy.app.version >= (5, 0, 0):
             collections.remove(next(c for c in collections if c.identifier == 'annotations'))
+        if bpy.app.version >= (5, 2, 0):
+            collections.remove(next(c for c in collections if c.identifier == 'all_ids'))
         _assign('CURVES', 'hair_curves', enums, collections)
         if bpy.app.version >= (5, 0, 0):
             _assign('GREASEPENCIL', 'grease_pencils', enums, collections, remove=False)
