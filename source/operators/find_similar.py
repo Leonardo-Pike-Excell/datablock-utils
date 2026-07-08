@@ -24,6 +24,10 @@ def get_settings() -> DBU_PG_FindSimilarSettings:
     return bpy.context.scene.dbu_similar_settings  # type: ignore
 
 
+def is_local_id(id_data: bpy.types.ID) -> bool:
+    return not id_data.library and not id_data.override_library
+
+
 def get_invalid_nodes(ntree: NodeTree) -> set[Node]:
     settings = get_settings()
     invalid_nodes = set()
@@ -218,7 +222,7 @@ def contents_of_ntrees(
 ) -> defaultdict[str, list[NodeProperties]]:
     content_map = defaultdict(list)
     for id_data in bl_data:
-        if id_data.library or (not isinstance(id_data, NodeTree) and not id_data.use_nodes):
+        if not is_local_id(id_data) or (not isinstance(id_data, NodeTree) and not id_data.use_nodes):
             continue
 
         ntree = id_data if isinstance(id_data, NodeTree) else id_data.node_tree
@@ -403,7 +407,7 @@ def find_similar_and_duplicate_ntrees(id_type: str) -> None:
 
 def find_duplicate_images() -> None:
     duplicates = []
-    images = [i for i in bpy.data.images if not i.library]
+    images = [i for i in bpy.data.images if is_local_id(i)]
     images.sort(key=get_image_props)
     for _, raw_group in groupby(images, get_image_props):
         group = [i.name for i in raw_group]
@@ -414,7 +418,7 @@ def find_duplicate_images() -> None:
 
 
 def find_duplicate_meshes() -> None:
-    meshes = [m for m in bpy.data.meshes if not m.library]
+    meshes = [m for m in bpy.data.meshes if is_local_id(m)]
     seen = set()
     results = []
     for m1 in meshes:
@@ -493,6 +497,8 @@ class DBU_OT_SimilarAndDuplicatesClearResults(Operator):
 def merge_ids(duplicate_ids: Iterable[Iterable[bpy.types.ID]]) -> int:
     to_remove = []
     for target, *junk in duplicate_ids:
+        if not is_local_id(target) or any(not is_local_id(id_data) for id_data in junk):
+            continue
         to_remove.extend(junk)
         for id_data in junk:
             id_data.user_remap(target)
