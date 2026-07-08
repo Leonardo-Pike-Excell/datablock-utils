@@ -104,6 +104,24 @@ def get_image_props(img: bpy.types.Image) -> tuple[Any, ...]:
     )
 
 
+def get_light_props(light: bpy.types.Light) -> tuple[Any, ...]:
+    props: list[Any] = [
+      tuple(light.color),
+      light.energy,
+      light.exposure,
+      light.use_shadow,
+      light.normalize,
+    ]
+    match light.type:
+        case 'AREA':
+            props.extend((light.size, light.size_y, light.shape))
+        case 'SPOT':
+            props.extend((light.spot_size, light.spot_blend))
+        case 'SUN':
+            props.append(light.angle)
+    return tuple(props)
+
+
 @dataclass(slots=True)
 class NodeProperties:
     id_data: Node | NodeTree
@@ -241,6 +259,9 @@ def contents_of_ntrees(
             props.props = [
               tuple(p) if isinstance(p, bpy.types.bpy_prop_array) else p for p in props]
             contents.append(props)
+
+        if isinstance(id_data, bpy.types.Light) and bpy.app.version >= (5, 1, 0):
+            contents.append(NodeProperties(id_data, ['LIGHT PROPS', *get_light_props(id_data)]))
 
         if not isinstance(id_data, NodeTree):
             continue
