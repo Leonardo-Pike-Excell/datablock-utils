@@ -438,13 +438,37 @@ def find_duplicate_images() -> None:
     update_collections(bpy.data.images, duplicates)
 
 
+# Edit-selection attrs are ephemeral; 5.2+ geometry_compare requires matching attr sets.
+_MESH_SELECT_ATTRS = ('.select_vert', '.select_edge', '.select_poly')
+
+
+def _mesh_attr_names(mesh: bpy.types.Mesh) -> frozenset[str]:
+    return frozenset(a.name for a in mesh.attributes)
+
+
+def _strip_mesh_select_attrs(meshes: Iterable[bpy.types.Mesh]) -> None:
+    for mesh in meshes:
+        for name in _MESH_SELECT_ATTRS:
+            if name in mesh.attributes:
+                mesh.attributes.remove(mesh.attributes[name])
+
+
 def find_duplicate_meshes() -> None:
     meshes = [m for m in bpy.data.meshes if is_local_id(m)]
+    # 5.2+: strip select attrs then skip pairs with mismatched remaining attr sets.
+    use_52_attr_gate = bpy.app.version >= (5, 2, 0)
+    if use_52_attr_gate:
+        _strip_mesh_select_attrs(meshes)
+
     seen = set()
     results = []
     for m1 in meshes:
         for m2 in meshes:
             if {m1, m2} in seen or m1 == m2:
+                continue
+
+            if use_52_attr_gate and _mesh_attr_names(m1) != _mesh_attr_names(m2):
+                seen.add(frozenset((m1, m2)))
                 continue
 
             if m1.unit_test_compare(mesh=m2) == 'Same':
