@@ -161,7 +161,7 @@ class NodeProperties:
                     assert socket.links is not None
                     for link in socket.links:
                         root_link = get_root_link(link)
-                        if not root_link.from_node.mute:
+                        if not root_link.from_node.mute and root_link.from_node.name in node_map:
                             self._add_link(root_link, node_map)
                     continue
 
